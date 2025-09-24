@@ -2,7 +2,7 @@
 # ====================================================
 # BESTGPT ULTRA - Intelligence Supérieure
 # Version: 4.0 | Créateur: Josué Raoult Drogba
-# Python Professionnel - Zéro Bug Garanti
+# Repo: https://github.com/josueraoult/BestGPT
 # ====================================================
 
 import requests
@@ -11,275 +11,240 @@ import urllib.parse
 import concurrent.futures
 import time
 import re
+import sys
 from typing import Dict, List, Tuple, Optional
 
 class BestGPTUltra:
     def __init__(self):
         self.apis = {
-            "gemini-image": "https://aryanapi.up.railway.app/api/geminii?prompt={prompt}",
+            "gemini": "https://aryanapi.up.railway.app/api/gemini?prompt={prompt}",
             "gemini-proxy": "https://aryanapi.up.railway.app/api/gemini-proxy2?prompt={prompt}",
             "deepseek": "https://aryanapi.up.railway.app/api/deepseek3?prompt={prompt}",
-            "gemini": "https://aryanapi.up.railway.app/api/gemini?prompt={prompt}",
             "brave": "https://aryanapi.up.railway.app/api/brave?prompt={prompt}",
-            "llama": "https://aryanapi.up.railway.app/api/llama-4-maverick-17b-128e-instruct?uid=123&prompt={prompt}",
             "gpt3": "https://aryanapi.up.railway.app/api/gpt-3.5-turbo?uid=123&prompt={prompt}",
             "powerbrain": "https://aryanapi.up.railway.app/api/powerbrain?uid=1&prompt={prompt}"
         }
         
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'BestGPT-Ultra/4.0',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
+            'User-Agent': 'Mozilla/5.0 (compatible; BestGPT-Ultra/4.0)',
+            'Accept': '*/*'
         })
         
-        print("🔥 BESTGPT ULTRA - Système d'Intelligence Collective")
-        print("🚀 Initialisation terminée - 8 APIs prêtes")
+        print("🔥 BESTGPT ULTRA - Intelligence Collective")
+        print("📡 Chargement de 6 APIs IA...")
 
-    def extract_response(self, data: str, api_name: str) -> Optional[str]:
-        """Extraction intelligente des réponses JSON"""
+    def smart_extract(self, data: str, api_name: str) -> Optional[str]:
+        """Extraction intelligente multi-formats"""
         try:
-            # Nettoyage initial
-            cleaned = data.strip()
-            if not cleaned:
+            if not data or data.strip() == "":
                 return None
+                
+            data = data.strip()
             
-            # Essai de parsing JSON
+            # Essai 1: JSON direct
             try:
-                json_data = json.loads(cleaned)
-                
-                # Patterns d'extraction selon la structure de l'API
+                json_data = json.loads(data)
                 if isinstance(json_data, dict):
-                    if 'result' in json_data:
-                        result = str(json_data['result'])
-                    elif 'response' in json_data:
-                        result = str(json_data['response'])
-                    elif 'answer' in json_data:
-                        result = str(json_data['answer'])
-                    elif 'text' in json_data:
-                        result = str(json_data['text'])
-                    elif 'content' in json_data:
-                        result = str(json_data['content'])
-                    else:
-                        # Prendre la première valeur string non-clé
-                        for key, value in json_data.items():
-                            if isinstance(value, str) and value.strip():
-                                result = value
-                                break
-                        else:
-                            result = str(json_data)
-                    return result.strip()
-                
-                elif isinstance(json_data, str):
-                    return json_data.strip()
-                    
-            except json.JSONDecodeError:
-                # Si ce n'est pas du JSON valide, traiter comme texte brut
-                if 'result' in cleaned.lower() or 'response' in cleaned.lower():
-                    # Extraction depuis texte semi-structuré
-                    patterns = [
-                        r'"result"\s*:\s*"([^"]+)"',
-                        r'"response"\s*:\s*"([^"]+)"',
-                        r'result[^"]*"([^"]+)"',
-                        r'response[^"]*"([^"]+)"'
-                    ]
-                    
-                    for pattern in patterns:
-                        match = re.search(pattern, cleaned, re.IGNORECASE)
-                        if match:
-                            return match.group(1).strip()
-                
-                # Retourner le texte nettoyé
-                return cleaned.replace('{"status":true,', '').replace('"', '').strip()
+                    for key in ['result', 'response', 'answer', 'text', 'content', 'message']:
+                        if key in json_data and json_data[key]:
+                            result = str(json_data[key]).strip()
+                            if result and result != "null":
+                                return result
+                    # Prendre la première valeur string
+                    for value in json_data.values():
+                        if isinstance(value, str) and value.strip():
+                            return value.strip()
+            except:
+                pass
+            
+            # Essai 2: Regex patterns
+            patterns = [
+                r'"result"\s*:\s*"([^"]+)"',
+                r'"response"\s*:\s*"([^"]+)"', 
+                r'"answer"\s*:\s*"([^"]+)"',
+                r'"text"\s*:\s*"([^"]+)"',
+                r'result[^"]*"([^"]+)"',
+                r'response[^"]*"([^"]+)"'
+            ]
+            
+            for pattern in patterns:
+                match = re.search(pattern, data, re.IGNORECASE)
+                if match:
+                    result = match.group(1).strip()
+                    if result and len(result) > 5:
+                        return result
+            
+            # Essai 3: Nettoyage et retour texte brut
+            clean_data = re.sub(r'^{[^}]*}', '', data)  # Enlever objets JSON vides
+            clean_data = re.sub(r'\s+', ' ', clean_data).strip()
+            
+            if len(clean_data) > 10:
+                return clean_data
                 
         except Exception as e:
-            print(f"❌ Erreur extraction {api_name}: {e}")
+            print(f"⚠️  Erreur extraction {api_name}: {e}")
             
         return None
 
-    def call_single_api(self, api_name: str, prompt: str) -> Tuple[str, Optional[str], int]:
-        """Appel individuel d'API avec gestion d'erreur complète"""
+    def call_api(self, api_name: str, prompt: str) -> Tuple[str, Optional[str], int]:
+        """Appel d'API avec gestion d'erreur robuste"""
         try:
-            url = self.apis[api_name].format(prompt=urllib.parse.quote(prompt))
+            encoded_prompt = urllib.parse.quote(prompt)
+            url = self.apis[api_name].format(prompt=encoded_prompt)
             
-            print(f"🔄 [{api_name}] Appel en cours...")
+            print(f"🔄 {api_name}...")
             
-            response = self.session.get(url, timeout=15)
-            response.raise_for_status()
+            response = self.session.get(url, timeout=12)
             
-            if response.text.strip():
-                extracted = self.extract_response(response.text, api_name)
-                if extracted and len(extracted) > 10:  # Réponse valide minimum
-                    print(f"✅ [{api_name}] Réussi ({len(extracted)} caractères)")
-                    return api_name, extracted, 1
+            if response.status_code == 200:
+                content = response.text.strip()
+                if content:
+                    extracted = self.smart_extract(content, api_name)
+                    if extracted and len(extracted) > 15:
+                        print(f"✅ {api_name} → {len(extracted)} caractères")
+                        return api_name, extracted, 1
+                    else:
+                        print(f"❌ {api_name} → Réponse invalide")
                 else:
-                    print(f"⚠️  [{api_name}] Réponse trop courte ou vide")
+                    print(f"❌ {api_name} → Contenu vide")
             else:
-                print(f"❌ [{api_name}] Réponse vide")
+                print(f"❌ {api_name} → HTTP {response.status_code}")
                 
         except requests.exceptions.Timeout:
-            print(f"⏰ [{api_name}] Timeout")
+            print(f"⏰ {api_name} → Timeout")
         except requests.exceptions.RequestException as e:
-            print(f"❌ [{api_name}] Erreur: {e}")
+            print(f"🌐 {api_name} → Erreur réseau")
         except Exception as e:
-            print(f"💥 [{api_name}] Erreur inattendue: {e}")
+            print(f"💥 {api_name} → Erreur: {str(e)[:50]}")
             
         return api_name, None, 0
 
-    def calculate_score(self, response: str) -> int:
-        """Algorithme de scoring avancé"""
+    def quality_score(self, text: str) -> int:
+        """Score de qualité avancé"""
+        if not text or len(text) < 10:
+            return 0
+            
         score = 0
         
-        # Score de longueur
-        length = len(response)
-        if length > 200:
-            score += 4
-        elif length > 100:
-            score += 3
-        elif length > 50:
+        # Longueur
+        length = len(text)
+        if length > 150: score += 3
+        elif length > 80: score += 2
+        elif length > 30: score += 1
+        
+        # Structure
+        if '.' in text: score += 2
+        if '?' in text or '!' in text: score += 1
+        if any(mark in text for mark in [',', ';', ':']): score += 1
+        
+        # Contenu riche
+        if any(word in text.lower() for word in ['exemple', 'détaillé', 'premièrement', 'ensuite']):
             score += 2
-        elif length > 20:
-            score += 1
-            
-        # Score de structure
-        if '.' in response:
-            score += 2
-        if '?' in response:
-            score += 1
-        if '!' in response:
-            score += 1
-            
-        # Score de contenu
-        if any(char.isdigit() for char in response):
-            score += 1
-        if any(word in response.lower() for word in ['premièrement', 'deuxièmement', 'ensuite', 'enfin']):
-            score += 3
-        if any(word in response.lower() for word in ['exemple', 'explication', 'détaillé']):
-            score += 2
-            
-        # Bonus pour les réponses bien structurées
-        sentences = re.split(r'[.!?]+', response)
-        if len(sentences) > 2:
-            score += 2
-            
+        if any(char.isdigit() for char in text): score += 1
+        
         return score
 
-    def intelligent_fusion(self, responses: Dict[str, str]) -> str:
-        """Fusion intelligente des réponses"""
+    def merge_responses(self, responses: Dict[str, str]) -> str:
+        """Fusion intelligente des meilleures réponses"""
         if not responses:
-            return "❌ Aucune API n'a fourni de réponse valide. Vérifiez votre connexion."
-            
+            return "❌ Aucune réponse valide reçue. Vérifiez votre connexion Internet."
+        
         # Calcul des scores
-        scored_responses = []
-        for api, response in responses.items():
-            score = self.calculate_score(response)
-            scored_responses.append((api, response, score))
-            print(f"📊 [{api}] Score: {score}")
-            
-        # Tri par score décroissant
-        scored_responses.sort(key=lambda x: x[2], reverse=True)
+        scored = [(api, resp, self.quality_score(resp)) for api, resp in responses.items()]
+        scored.sort(key=lambda x: x[2], reverse=True)
         
-        # Sélection des 3 meilleures réponses
-        best_responses = scored_responses[:3]
+        # Filtrage des réponses de qualité
+        valid_responses = [s for s in scored if s[2] > 0]
         
-        if len(best_responses) == 1:
-            # Une seule réponse valide
-            api, response, score = best_responses[0]
-            return f"🧠 **Réponse de {api}** (Score: {score})\n\n{response}"
-            
-        else:
-            # Fusion multi-sources
-            result = "💫 **SYNTHÈSE BESTGPT ULTRA**\n\n"
-            result += f"*Fusion de {len(best_responses)} intelligences différentes*\n\n"
-            
-            for i, (api, response, score) in enumerate(best_responses, 1):
-                result += f"🔍 **Perspective {i} ({api})** - Score: {score}\n"
-                result += f"{response}\n\n"
-                
-            result += "🌟 *Analyse collective terminée - Meilleure réponse synthétisée*"
-            return result
+        if not valid_responses:
+            # Fallback: prendre la plus longue réponse
+            longest = max(responses.items(), key=lambda x: len(x[1]))
+            return f"📝 {longest[0]}: {longest[1]}"
+        
+        if len(valid_responses) == 1:
+            # Une seule bonne réponse
+            api, resp, score = valid_responses[0]
+            return f"🎯 **Meilleure réponse ({api})**\n\n{resp}"
+        
+        # Fusion multi-sources
+        result = f"💫 **SYNTHÈSE BESTGPT** ({len(valid_responses)} sources)\n\n"
+        
+        for i, (api, resp, score) in enumerate(valid_responses[:3], 1):
+            result += f"🔍 **Source {i} - {api}** (qualité: {score}/10)\n"
+            result += f"{resp}\n\n"
+        
+        result += "🌟 *Analyse collective terminée*"
+        return result
 
-    def process_query(self, prompt: str) -> str:
-        """Traitement principal de la requête"""
-        print(f"\n🚀 **Traitement de la requête:** {prompt}")
-        print("=" * 60)
+    def process(self, prompt: str) -> str:
+        """Traitement principal"""
+        print(f"\n🚀 **Question:** {prompt}")
+        print("=" * 50)
         
-        # Appel parallèle de toutes les APIs
+        start_time = time.time()
         responses = {}
-        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-            future_to_api = {
-                executor.submit(self.call_single_api, api, prompt): api 
-                for api in self.apis
-            }
-            
-            for future in concurrent.futures.as_completed(future_to_api):
-                api_name, response, success = future.result()
-                if success and response:
-                    responses[api_name] = response
-                    
-        print(f"\n📈 **Statistiques:** {len(responses)}/{len(self.apis)} APIs ont répondu")
         
-        # Fusion intelligente
-        if responses:
-            return self.intelligent_fusion(responses)
-        else:
-            return "❌ **Aucune réponse valide** - Vérifiez:\n• Votre connexion Internet\n• La disponibilité des APIs\n• La formulation de votre question"
+        # Appels parallèles
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {executor.submit(self.call_api, api, prompt): api for api in self.apis}
+            
+            for future in concurrent.futures.as_completed(futures):
+                api, response, success = future.result()
+                if success:
+                    responses[api] = response
+        
+        duration = time.time() - start_time
+        print(f"\n📊 **Résultats:** {len(responses)}/{len(self.apis)} APIs ont répondu")
+        print(f"⏱️  **Temps:** {duration:.2f}s")
+        
+        return self.merge_responses(responses)
 
-    def interactive_mode(self):
-        """Mode interactif"""
+    def interactive(self):
+        """Mode conversationnel"""
         print("\n" + "="*60)
-        print("💬 **MODE INTERACTIF BESTGPT ULTRA**")
+        print("💬 **BESTGPT ULTRA - MODE INTERACTIF**")
         print("Tapez 'quit' pour quitter")
         print("="*60)
         
         while True:
             try:
-                prompt = input("\n🤖 **Votre question:** ").strip()
+                prompt = input("\n🤖 **Vous:** ").strip()
                 
                 if prompt.lower() in ['quit', 'exit', 'q']:
-                    print("👋 Au revoir !")
+                    print("👋 Au revoir!")
                     break
                     
                 if not prompt:
-                    print("⚠️  Veuillez entrer une question")
                     continue
-                    
-                # Traitement de la requête
-                start_time = time.time()
-                result = self.process_query(prompt)
-                end_time = time.time()
                 
-                print(f"\n✅ **Temps de traitement:** {end_time - start_time:.2f}s")
-                print("\n" + "="*60)
-                print("💫 **RÉPONSE ULTRA**")
-                print("="*60)
-                print(result)
-                print("="*60)
+                response = self.process(prompt)
+                print(f"\n💫 **BestGPT:**\n{response}")
+                print("\n" + "-"*50)
                 
             except KeyboardInterrupt:
-                print("\n👋 Interruption - Au revoir !")
+                print("\n👋 Interruption - Au revoir!")
                 break
             except Exception as e:
                 print(f"💥 Erreur: {e}")
 
 def main():
-    """Point d'entrée principal"""
+    """Point d'entrée"""
     try:
         gpt = BestGPTUltra()
         
         if len(sys.argv) > 1:
             # Mode ligne de commande
             query = " ".join(sys.argv[1:])
-            result = gpt.process_query(query)
-            print(result)
+            result = gpt.process(query)
+            print(f"\n💫 **Réponse:**\n{result}")
         else:
             # Mode interactif
-            gpt.interactive_mode()
+            gpt.interactive()
             
     except Exception as e:
         print(f"💥 Erreur critique: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
-    import sys
     main()
